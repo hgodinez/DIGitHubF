@@ -1,0 +1,1005 @@
+---
+title: "Data Incubator Project"
+author: "Humberto Godinez"
+date: "04 May 2016"
+output:
+  pdf_document: default
+  html_document:
+    fig_height: 9
+    keep_md: yes
+---
+
+##Code Economic Factors -ANN  
+
+
+```{r, message=F, warning=F, eval=FALSE}
+require(ggplot2)
+require(reshape2)
+require(quantmod)
+require(FredR)
+require(Quandl)
+require(pipeR)
+require(plyr)
+require(dplyr)
+require(gridExtra)
+require(ggthemes)
+require(gtools)
+require(corrplot)
+require(wordcloud)
+require(RColorBrewer)
+require(forecast)
+
+
+
+
+
+Quandl.auth("pFAQ3QcDfiaEzfUoi6xq")
+Quandl.api_key("pFAQ3QcDfiaEzfUoi6xq")
+api.key="b95de0738c081f3a3d2c501fae612d35"
+fred <- FredR(api.key)
+
+
+#GDP Series
+
+gdp.series <- fred$series.search("GDP")
+
+
+gdp.series %>>%
+  select(
+    id,
+    title,
+    observation_start,
+    observation_end,
+    frequency,
+    popularity
+  ) %>>%
+  arrange(
+    desc(as.numeric(popularity))
+  )
+
+gdp <- fred$series.observations(series_id = 'GDPC1')
+
+gdp %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtgdp
+
+#M2 Series
+
+m2.series <- fred$series.search("M2")
+m2.series %>>%
+  select(
+    id,
+    title,
+    observation_start,
+    observation_end,
+    frequency,
+    popularity
+  ) %>>%
+  arrange(
+    desc(as.numeric(popularity))
+  )
+
+m2 <- fred$series.observations(series_id = 'M2SL')
+
+m2 %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtm2
+
+#CPI
+
+cpi.series <- fred$series.search("CPI")
+cpi.series %>>%
+  select(
+    id,
+    title,
+    observation_start,
+    observation_end,
+    frequency,
+    popularity
+  ) %>>%
+  arrange(
+    desc(as.numeric(popularity))
+  )
+
+cpi <- fred$series.observations(series_id = 'CPIAUCSL')
+
+cpi %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtcpi
+
+#UNEMPLOYMENT
+
+unem.series <- fred$series.search("Unemployment")
+
+unem.series %>>%
+  select(
+    id,
+    title,
+    observation_start,
+    observation_end,
+    frequency,
+    popularity
+  ) %>>%
+  arrange(
+    desc(as.numeric(popularity))
+  )
+
+unem <- fred$series.observations(series_id = 'UNEMPLOY')
+
+unem %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtunem
+
+#TBills
+
+tbills.series <- fred$series.search("tbills")
+
+tbills.series %>>%
+  select(
+    id,
+    title,
+    observation_start,
+    observation_end,
+    frequency,
+    popularity
+  ) %>>%
+  arrange(
+    desc(as.character(frequency))
+  )
+
+TB.3M <- fred$series.observations(series_id = 'TB3MS')
+
+TB.3M %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtTB.3M
+
+TB.1yr <- fred$series.observations(series_id = 'TB1YR')
+
+TB.1yr %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtTB.1yr
+
+
+
+TB.TB6MS <- fred$series.observations(series_id = 'TB6MS')
+
+TB.TB6MS %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtTB6MS
+
+#OIL PRODUCTION
+
+oil.series <- fred$series.search("oil")
+
+oil.series %>>%
+  select(
+    id,
+    title,
+    observation_start,
+    observation_end,
+    frequency,
+    popularity
+  ) %>>%
+  arrange(
+    desc(as.numeric(popularity))
+  )
+
+oilp <- fred$series.observations(series_id = 'IPG211111CN')
+
+oilp %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtoilp
+
+#Gold
+
+gold.series <- fred$series.search("gold")
+
+gold.series %>>%
+  select(
+    id,
+    title,
+    observation_start,
+    observation_end,
+    frequency,
+    popularity
+  ) %>>%
+  arrange(
+    desc(as.numeric(popularity))
+  )
+
+
+gold.series <- fred$series.observations(series_id = 'GOLDAMGBD228NLBM')
+
+gold.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtgold
+
+#RESERVES
+
+reserves.series <- fred$series.search("reserves")
+
+reserves.series %>>%
+  select(
+    id,
+    title,
+    observation_start,
+    observation_end,
+    frequency,
+    popularity
+  ) %>>%
+  arrange(
+    desc(as.numeric(popularity))
+  )
+
+reserves.series <- fred$series.observations(series_id = 'FEDFUNDS')
+
+reserves.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtreserves
+
+
+#Personal Income
+
+income.series <- fred$series.search("income")
+
+income.series %>>%
+  select(
+    id,
+    title,
+    observation_start,
+    observation_end,
+    frequency,
+    popularity
+  ) %>>%
+  arrange(
+    desc(as.numeric(popularity))
+  )
+
+income.series <- fred$series.observations(series_id = 'PI')
+
+income.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtincome
+
+#Index
+
+index.series <- fred$series.search("index")
+
+index.series %>>%
+  select(
+    id,
+    title,
+    observation_start,
+    observation_end,
+    frequency,
+    popularity
+  ) %>>%
+  arrange(
+    desc(as.numeric(popularity))
+  )
+
+indprod.series <- fred$series.observations(series_id = 'INDPRO')
+
+indprod.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtindprod
+
+persconsind.series <- fred$series.observations(series_id = 'PCEPI')
+
+persconsind.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtpersconsind
+
+pricecommodindex.series <- fred$series.observations(series_id = 'PPIACO')
+
+pricecommodindex.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtpcoind
+
+#M1
+
+m1.series <- fred$series.search("m1")
+
+m1.series %>>%
+  select(
+    id,
+    title,
+    observation_start,
+    observation_end,
+    frequency,
+    popularity
+  ) %>>%
+  arrange(
+    desc(as.numeric(popularity))
+  )
+
+m1.series <- fred$series.observations(series_id = 'CURRSL')
+
+m1.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtm1
+
+#Currency
+
+currency.series <- fred$series.search("currency")
+
+currency.series %>>%
+  select(
+    id,
+    title,
+    observation_start,
+    observation_end,
+    frequency,
+    popularity
+  ) %>>%
+  arrange(
+    desc(as.numeric(popularity))
+  )
+
+usdllind.series <- fred$series.observations(series_id = 'TWEXBPA')
+
+usdllind.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtusdllind
+
+#Deposits
+
+deposits.series <- fred$series.search("deposits")
+
+deposits.series %>>%
+  select(
+    id,
+    title,
+    observation_start,
+    observation_end,
+    frequency,
+    popularity
+  ) %>>%
+  arrange(
+    desc(as.numeric(popularity))
+  )
+
+deposits.series <- fred$series.observations(series_id = 'DEMDEPSL')
+#Demand Deposits: total (money in banks)
+
+deposits.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtdeposits
+
+#Wages
+
+wages.series <- fred$series.search("wage")
+
+wages.series %>>%
+  select(
+    id,
+    title,
+    observation_start,
+    observation_end,
+    frequency,
+    popularity
+  ) %>>%
+  arrange(
+    desc(as.numeric(popularity))
+  )
+
+hourlyearn.series <- fred$series.observations(series_id = 'AHETPI')
+#AVERAGE HOURLY EARNINGS
+
+hourlyearn.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dthourlyearn
+
+wages.series <- fred$series.observations(series_id = 'A576RC1')
+#WAGES AND SALARY
+
+wages.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtwages
+
+hourswork.series <- fred$series.observations(series_id = 'M08154USM065NNBR')
+#Total hours worked
+
+hourswork.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dthourswork
+
+#Monthly Series
+
+monthly.series <- fred$series.search("monthly")
+
+monthly.series %>>%
+  select(
+    id,
+    title,
+    observation_start,
+    observation_end,
+    frequency,
+    popularity
+  ) %>>%
+  arrange(
+    desc(as.character(frequency))
+  )
+
+houst.series <- fred$series.observations(series_id = 'HOUST')
+#Housing Starts: Total: New Privately Owned Housing Units Started
+
+houst.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dthoust
+
+tresu10y.series <- fred$series.observations(series_id = 'GS10')
+#10-Year Treasury Constant Maturity Rate
+
+tresu10y.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dttresu10y
+
+mbase.series <- fred$series.observations(series_id = 'BOGMBASE')
+#Monetary Base; Total
+
+mbase.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtmbase
+
+housesalesp.series <- fred$series.observations(series_id = 'MSPNHSUS')
+#Median Sales Price for New Houses Sold in the United States
+
+housesalesp.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dthousesalesp
+
+dispincome.series <- fred$series.observations(series_id = 'A229RX0')
+#Real disposable income
+
+dispincome.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtdispincome
+
+loansbanks.series <- fred$series.observations(series_id = 'BUSLOANS')
+#Commercial and Industrial Loans, All Commercial Banks
+
+loansbanks.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtloansbanks
+
+interstus.series <- fred$series.observations(series_id = 'INTDSRUSM193N')
+#Interest Rates, Discount Rate for United States
+
+interstus.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dtinterstus
+
+housesupp.series <- fred$series.observations(series_id = 'MSACSR')
+#House Supply US
+
+housesupp.series %>>%
+  select(
+    date,
+    value
+  ) %>>%
+  mutate(
+    date = as.Date(date),
+    value = as.numeric(value)
+  ) ->
+  dthousesupp
+
+list.var<-list(dtcpi,dtm2,dtunem,dtTB.3M, dtTB6MS,dtreserves,dtincome,dtindprod,dtpersconsind,dtpcoind,dtm1,
+               dtdeposits,dthourlyearn,
+               dtwages,dthoust,dttresu10y,dtmbase,
+               dthousesalesp,dtdispincome,dtloansbanks,dtinterstus,
+               dthousesupp)
+
+data<-join_all(list.var, by="date", match="all")
+colnames(data) <- c("date","inflation","m2","unemployment","tb3m", "tb6m","reserves","persincome","indprod","persconsind",
+                    "pcomodind","m1","deposits","avehourearn",
+                    "wages","houseunits","tresu10y","mbase",
+                    "housesalesprice","dispincome","loansbanks",
+                    "IntDiscUS","housesupply")
+
+sapply(data, function(x) sum(is.na(x)))
+data<-as.data.frame(data[complete.cases(data),])
+data1<-data[,-1]
+data1<-sapply(data1,function(data1) diff(log(data1)))
+data1<-rollapply(data1, 24, function(x) mean(x[]), partial = TRUE, align = "right")
+
+
+
+
+colnames(data1) <- c("Linflation","Lm2","Lunemployment","Ltb3m",
+                     "Ltb6m","Lreserves","Lpersincome","Lindprod","Lpersconsind","Lpcomodind",                     "Lm1","Ldeposits","Lavehourearn","Lwages",
+                     "Lhouseunits","Ltresu10y","Lmbase",
+                     "Lhousesalesprice","Ldispincome","Lloansbanks",
+                     "LIntDiscUS", "Lhousesupply")
+
+
+data2<-data[-1,]
+data2<-cbind(data2,data1)
+data2<-data2[-1,]
+
+
+
+pdf("C:/Users/Humberto Godinez/Google Drive/Outsourcing Projects/dataincu/wordplot1.pdf")
+wordplot<-wordcloud("In data data economics, is a sustained increase in the general fellow  price level of goods fellow and services in an 
+economy over a period of time. When data incubator fellow the price fellow level rises, each unit of currency buys fewer goods and incubator 
+fellow  fellow  services. multi-layer inflation perceptrons neuralnet a synapse can only connect to fellow  incubator subsequent layers The input layer NEURAL data data consists of all covariates in separate fellow   incubator  fellow neurons and the output layer consists of the data response variables  Inflation Money Supply fellow Unemployment T-Bills Reserves Big DATA Personal incubator  Income GDP Industrial Production Consumption 
+Commodities Deposits Average Earning Wages Housing Loans DATA 
+Units Treasury Prices Index Disposable Income Discount Rate Artificial Neural Networks", 
+                    scale=c(5,0.5), min.freq=1,use.r.layout=FALSE, rot.per=0.35, random.color=TRUE, color=brewer.pal(8, "Dark2"))
+dev.off()
+
+data3<-data2[-590:-624,]
+data3$coraveearn.inf<-running(data2$avehourearn,data2$inflation,fun=cor, width=36)
+data3$corhouseuni.inf<-running(data2$houseunits,data2$inflation,fun=cor, width=36)
+data3$cormbase.inf<-running(data2$mbase,data2$inflation,fun=cor, width=36)
+data3$cortres10y.inf<-running(data2$tresu10y,data2$inflation,fun=cor, width=36)
+data3$corwages.inf<-running(data2$wages,data2$inflation,fun=cor, width=36)
+
+
+data3$corun.inf<-running(data2$unemployment,data2$inflation,fun=cor, width=36)
+data3$corm2.inf<-running(data2$m2,data2$inflation,fun=cor, width=36)
+data3$corGDP.inf<-running(data2$indprod,data2$inflation,fun=cor, width=36)
+data3$cortb3m.inf<-running(data2$tb3m,data2$inflation,fun=cor, width=36)
+data3$cortb6m.inf<-running(data2$tb6m,data2$inflation,fun=cor, width=36)
+data3$correserves.inf<-running(data2$reserves,data2$inflation,fun=cor, width=36)
+
+
+data3$cordisc.inf<-running(data2$LIntDiscUS,data2$Linflation,fun=cor, width=36)
+data3$cordispinc.inf<-running(data2$dispincome,data2$inflation,fun=cor, width=36)
+data3$corhouseprice.inf<-running(data2$housesalesprice,data2$inflation,
+                                 fun=cor, width=36)
+data3$corhousesupp.inf<-running(data2$housesupply,data2$inflation,fun=cor, width=36)
+data3$corloans.inf<-running(data2$loansbanks,data2$inflation,fun=cor, width=36)
+
+data3$corcomind.inf<-running(data2$pcomodind,data2$inflation,fun=cor, width=36)
+data3$cordeposits.inf<-running(data2$deposits,data2$inflation,fun=cor, width=36)
+data3$corm1.inf<-running(data2$m1,data2$inflation,fun=cor, width=36)
+data3$corperscons.inf<-running(data2$persconsind,data2$inflation,fun=cor, width=36)
+data3$corpersinc.inf<-running(data2$persincome,data2$inflation,fun=cor, width=36)
+
+
+
+my.plot1.1<- ggplot(data=data2, aes(x=date)) + 
+  geom_line(aes(y=Linflation,color="Inflation")) + # Adding a colored line
+  geom_line(aes(y=Lavehourearn,color="Average Earnings")) +
+  geom_line(aes(y=Lwages,color="Wages")) +
+  geom_line(aes(y=Lhouseunits,color="House Units")) +
+  geom_line(aes(y=Ltresu10y,color="Treasury 10y")) +
+  geom_line(aes(y=Lmbase,color="M Base")) +
+  theme_economist()+scale_colour_economist() + 
+  theme(legend.background = element_rect(fill=alpha(0.0001, 0.0001)),legend.text=element_text(size=10),legend.title=element_blank(),
+        legend.direction="horizontal",legend.position=c(.55,.155),
+        plot.title = element_text(size = 13))+ # modifying background color
+  scale_color_manual(values=c("Inflation"="deepskyblue2", "Average Earnings"="forestgreen","Wages"="gray60","House Units"="gray0",
+                              "Treasury 10y"="darkred","M Base"="purple3"))+
+  xlab("Time") + ylab("Average Log Return") + ggtitle("Average Annual Log Return of Selected Economic Factors") # Adding titles
+
+
+my.plot1.2<- ggplot(data=data2, aes(x=date)) + 
+  geom_line(aes(y=Lhousesalesprice,color="House Prices")) +
+  geom_line(aes(y=Ldispincome,color="Disposable Income")) +
+  geom_line(aes(y=Lloansbanks,color="Loans")) +
+  geom_line(aes(y=LIntDiscUS,color="Discount Rate")) +
+  geom_line(aes(y=Lhousesupply,color="House Supply")) +
+  theme_economist()+scale_colour_economist() + 
+  theme(legend.background = element_rect(fill=alpha(0.01, 0.01)),legend.text=element_text(size=10),legend.title=element_blank(),
+        legend.direction="horizontal",legend.position=c(0.4,.21),
+        plot.title = element_text(size = 13))+ # modifying background color
+  scale_color_manual(values=c("House Prices"="deepskyblue2","Disposable Income"="forestgreen","Loans"="darkorange","Discount Rate"="darkred",
+                              "House Supply"="gray0"))+
+  xlab("Time") + ylab("Average Log Return") #+ ggtitle("Average Annual Log Return of Selected Economic Factors") # Adding titles
+
+
+my.plot1.3<- ggplot(data=data2, aes(x=date)) + 
+  geom_line(aes(y=Lindprod,color="GDP")) + 
+  geom_line(aes(y=Lm2,color="M2")) +
+  geom_line(aes(y=Ltb3m,color="T-Bills 3M")) + 
+  geom_line(aes(y=Ltb6m,color="T-Bills 6M")) + 
+  geom_line(aes(y=Lunemployment,color="Unemployment")) + 
+  geom_line(aes(y=Lreserves,color="Reserves")) + 
+  theme_economist()+scale_colour_economist() + 
+  theme(legend.background = element_rect(fill=alpha(0.01, 0.01)),legend.text=element_text(size=10),legend.title=element_blank(),legend.direction="horizontal",legend.position=c(0.5,.235),plot.title = element_text(size = 13))+ # modifying background color
+  scale_color_manual(values=c("GDP"="forestgreen","M2"="darkorange",
+                              "Unemployment"="brown1", "T-Bills 3M"="blue4", "T-Bills 6M"="darkred", "Reserves"="grey0"))+
+  xlab("Time") + ylab("Average Log Return") + ggtitle("Average Annual Log Return of Selected Economic Factors") # Adding titles
+
+
+my.plot1.4<- ggplot(data=data2, aes(x=date)) + 
+  geom_line(aes(y=Lpersincome,color="Personal Income")) +
+  geom_line(aes(y=Lpersconsind,color="Personal Consumption")) +
+  geom_line(aes(y=Lpcomodind,color="Commodity index")) +
+  geom_line(aes(y=Lm1,color="M1")) +
+  geom_line(aes(y=Ldeposits,color="Deposits")) +
+  theme_economist()+scale_colour_economist() + 
+  theme(legend.background = element_rect(fill=alpha(0.01, 0.01)),legend.text=element_text(size=10),legend.title=element_blank(),
+        legend.direction="horizontal",legend.position=c(.4,.69),plot.title = element_text(size = 13))+ # modifying background color
+  scale_color_manual(values=c("Personal Income"="forestgreen","Personal Consumption"="darkorange","Commodity index"="grey0", "M1"="deepskyblue2", "Deposits"="darkred"))+
+  xlab("Time") + ylab("Average Log Return") #+ ggtitle("Average Annual Log Return of Selected Economic Factors") # Adding titles
+
+
+my.plot2.1<- ggplot(data=data3, aes(x=date)) + 
+  geom_line(aes(y=coraveearn.inf,color="Average Income vs Inf.")) +
+  geom_line(aes(y=corhouseuni.inf,color="House Unites vs Inf.")) +
+  geom_line(aes(y=cormbase.inf,color="M-Base vs Inf.")) +
+  geom_line(aes(y=cortres10y.inf,color="Treasury 10y vs Inf.")) +
+  geom_line(aes(y=corwages.inf,color="Wages vs Inf.")) +
+  theme_economist()+scale_colour_economist() + 
+  theme(axis.title.x = element_blank(),legend.background = element_rect(fill=alpha(0.01, 0.01)),legend.text=element_text(size=10),legend.title=element_blank(),legend.direction="horizontal",legend.position=c(.5,.18),plot.title = element_text(size = 13))+ # modifying background color
+  scale_color_manual(values=c("Average Income vs Inf."="forestgreen","House Unites vs Inf."="darkorange","M-Base vs Inf."="grey0", "Treasury 10y vs Inf."="deepskyblue2", "Wages vs Inf."="darkred"))+
+  ylab("Correlation") + ggtitle("Correlation between Economic Factors (3-year smooth)") # Adding titles
+
+
+my.plot2.2<- ggplot(data=data3, aes(x=date)) + 
+  geom_line(aes(y=corun.inf,color="Unemployment vs Inf.")) +
+  geom_line(aes(y=corm2.inf,color="M2 vs Inf.")) +
+  geom_line(aes(y=corGDP.inf,color="GDP vs Inf.")) +
+  geom_line(aes(y=cortb3m.inf,color="T-bills 3M vs Inf.")) +
+  #geom_line(aes(y=cortb6m.inf,color="T-bills 6M vs Inf.")) +
+  geom_line(aes(y=correserves.inf,color="Reserves vs Inf.")) +
+    theme_economist()+scale_colour_economist() + 
+  theme(axis.title.x = element_blank(),legend.background = element_rect(fill=alpha(0.01, 0.01)),legend.text=element_text(size=10),legend.title=element_blank(),legend.box = "horizontal",legend.direction="horizontal",legend.position=c(.5,1.03),plot.title = element_text(size = 13))+ # modifying background color
+  scale_color_manual(values=c("Unemployment vs Inf."="forestgreen","M2 vs Inf."="darkorange","GDP vs Inf."="grey0", "T-bills 3M vs Inf."="deepskyblue2", "T-bills 6M vs Inf."="darkred", "Reserves vs Inf."="darkred"))+
+  ylab("Correlation") #+ ggtitle("Correlation between Economic Factors (3-year smooth)") # Adding titles
+
+
+my.plot2.3<- ggplot(data=data3, aes(x=date)) + 
+  geom_line(aes(y=cordisc.inf,color="Discount vs Inf.")) +
+  geom_line(aes(y=cordispinc.inf,color="Disposable Inc. vs Inf.")) +
+  geom_line(aes(y=corhouseprice.inf,color="House Prices vs Inf.")) +
+  geom_line(aes(y=corhousesupp.inf,color="Houses vs Inf.")) +
+  geom_line(aes(y=corloans.inf,color="Loans vs Inf.")) +
+  theme_economist()+scale_colour_economist() + 
+  theme(axis.title.x = element_blank(),legend.background = element_rect(fill=alpha(0.01, 0.01)),legend.text=element_text(size=10),legend.title=element_blank(),legend.direction="horizontal",legend.position=c(.45,.14),plot.title = element_text(size = 13))+ # modifying background color
+  scale_color_manual(values=c("Discount vs Inf."="forestgreen","Disposable Inc. vs Inf."="darkorange","House Prices vs Inf."="grey0", "Houses vs Inf."="deepskyblue2", "Loans vs Inf."="darkred"))+
+  ylab("Correlation") + ggtitle("Correlation between Economic Factors (3-year smooth) ") # Adding titles
+
+my.plot2.4<- ggplot(data=data3, aes(x=date)) + 
+  geom_line(aes(y=corcomind.inf,color="Commodities vs Inf.")) +
+  geom_line(aes(y=cordeposits.inf,color="Deposits vs Inf.")) +
+  geom_line(aes(y=corm1.inf,color="M1 vs Inf.")) +
+  geom_line(aes(y=corperscons.inf,color="Personal Cons. vs Inf.")) +
+  geom_line(aes(y=corpersinc.inf,color="Personal Inc. vs Inf.")) +
+  theme_economist()+scale_colour_economist() + 
+  theme(axis.title.x = element_blank(),legend.background = element_rect(fill=alpha(0.01, 0.01)),legend.text=element_text(size=10),legend.title=element_blank(),legend.direction="horizontal",legend.position=c(.45,.14),plot.title = element_text(size = 13))+ # modifying background color
+  scale_color_manual(values=c("Commodities vs Inf."="forestgreen","Deposits vs Inf."="darkorange","M1 vs Inf."="grey0", "Personal Cons. vs Inf."="deepskyblue2", "Personal Inc. vs Inf."="darkred"))+
+  ylab("Correlation") #+ ggtitle("Correlation between Economic Factors (3-year smooth)") # Adding titles
+
+
+
+
+
+
+
+#Log COrrelations
+dcor<-cor(data1)
+colnames(dcor) <- c("Inflation","M2","Unemp.","TB3M",
+                        "TB6M","Reserves","P.Income","Ind.Prod","P.Consu","Comodities",
+                        "M1","Deposits","Ave.Earn","Wages","House.Units","Tres10y","Mbase",
+                        "House.Prices","Disp.Income","Loans","Disc.Rate","House.Supply")
+rownames(dcor) <- c("Inflation","M2","Unemp.","TB3M",
+                        "TB6M","Reserves","P.Income","Ind.Prod","P.Consu","Comodities",
+                        "M1","Deposits","Ave.Earn","Wages","House.Units","Tres10y","Mbase",
+                        "House.Prices","Disp.Income","Loans","Disc.Rate","House.Supply")
+
+
+
+
+dcordata<-cor(data[,-1])
+colnames(dcordata) <- c("Inflation","M2","Unemp.","TB3M",
+                     "TB6M","Reserves","P.Income","Ind.Prod","P.Consu","Comodities",
+                     "M1","Deposits","Ave.Earn","Wages","House.Units","Tres10y","Mbase",
+                     "House.Prices","Disp.Income","Loans","Disc.Rate","House.Supply")
+rownames(dcordata) <- c("Inflation","M2","Unemp.","TB3M",
+                        "TB6M","Reserves","P.Income","Ind.Prod","P.Consu","Comodities",
+                        "M1","Deposits","Ave.Earn","Wages","House.Units","Tres10y","Mbase",
+                        "House.Prices","Disp.Income","Loans","Disc.Rate","House.Supply")
+
+
+
+
+
+
+
+require(neuralnet)
+
+#First we need to check that no datapoint is missing, otherwise we need 
+#to fix the dataset.
+data1<-as.data.frame(data1)
+
+apply(data1,2,function(x) sum(is.na(x)))
+
+#We proceed by randomly splitting the data into a train and a test set, 
+#then we fit a linear regression model and test it on the test set
+
+idx <- seq(1,round(0.90*nrow(data1)))
+train <- data1[idx,]
+test <- data1[-idx,]
+lm.fit <- glm(Linflation~., data=train)
+summary(lm.fit)
+prlm <- predict(lm.fit,test)
+MSElm <- sum((prlm - test$Linflation)^2)/nrow(test)
+
+LinfArima<-ts(data1$Linflation,start=c(1964,2), end=c(2016,2),frequency=12)
+LinfArima<-LinfArima[-564:-625]
+fitArima <- auto.arima(LinfArima,stationary = TRUE)
+f.fitArima<-forecast(fitArima,h=63)
+
+#Preparing to fit the neural network
+mx <- apply(data1, 2, max) 
+mini <- apply(data1, 2, min)
+
+scaled <- as.data.frame(scale(data1, center = mini, scale = mx - mini))
+
+train_ <- scaled[idx,]
+test_ <- scaled[-idx,]
+
+n <- names(train_)
+formul <- as.formula(paste("Linflation~", paste(n[!n %in% "Linflation"], collapse = " + ")))
+nn <- neuralnet(formul,data=train_,hidden=c(2,7),linear.output=FALSE)
+#plot(nn)
+
+prNN <- compute(nn,test_[,c("Lm2","Lunemployment","Ltb3m",
+                            "Ltb6m","Lreserves","Lpersincome","Lindprod","Lpersconsind","Lpcomodind",
+                            "Lm1","Ldeposits","Lavehourearn","Lwages","Lhouseunits","Ltresu10y","Lmbase",
+                            "Lhousesalesprice","Ldispincome","Lloansbanks","LIntDiscUS","Lhousesupply")])
+
+prNN_ <- prNN$net.result*(max(data1$Linflation)-min(data1$Linflation))+min(data1$Linflation)
+test.r <- (test_$Linflation)*(max(data1$Linflation)-min(data1$Linflation))+min(data1$Linflation)
+
+MSE.nn <- sum((test.r - prNN_)^2)/nrow(test_)
+
+
+
+
+
+prNNTrain <- compute(nn,train[,c("Lm2","Lunemployment","Ltb3m",
+                                 "Ltb6m","Lreserves","Lpersincome","Lindprod","Lpersconsind","Lpcomodind",
+                                 "Lm1","Ldeposits","Lavehourearn","Lwages","Lhouseunits","Ltresu10y","Lmbase",
+                                 "Lhousesalesprice","Ldispincome","Lloansbanks","LIntDiscUS","Lhousesupply")])
+prNN_Train <- prNNTrain$net.result*(max(data1$Linflation)-min(data1$Linflation))+min(data1$Linflation)
+
+train$Arimaf<-as.numeric(f.fitArima$fitted)
+train$nn<-prNN_Train
+train$nnsd<-prNN_Train+1*sd(prNN_Train)
+train$nn.sd<-prNN_Train-1*sd(prNN_Train)
+
+test$Arimaf<-as.numeric(f.fitArima$mean)
+test$nn<-prNN_
+test$nnsd<-prNN_+1*sd(prNN_)
+test$nn.sd<-prNN_-1*sd(prNN_)
+
+
+NN.<-as.data.frame(data)
+NN.<-NN.[-1,]
+NN1.<-rbind(train,test)
+NN.<-cbind(NN.,NN1.)
+NN.f<-NN.[-1:-563,]
+NN.f$ArimaL80<-f.fitArima$lower[,1]
+NN.f$ArimaU80<-f.fitArima$upper[,1]
+
+plotNN.f<- ggplot(data=NN.f, aes(x=date)) + 
+  geom_ribbon(aes(ymin=nn.sd, ymax=nnsd, fill="lightblue"))+
+  geom_ribbon(aes(ymin=ArimaL80, ymax=ArimaU80, fill="lightblue3"),alpha=0.5)+
+  geom_line(aes(y=Linflation,color="Inflation"),size=1.4) + # Adding a colored line
+  geom_line(aes(y=nn,color="Neural Network"),size=1.01) + 
+  geom_line(aes(y=Arimaf,color="Arima"),size=1.01)+
+  theme_economist()+scale_colour_economist() + 
+  theme(axis.title.x = element_blank(),legend.background = element_rect(fill=alpha(0.01, 0.01)),legend.text=element_text(size=10),legend.title=element_blank(),legend.direction="horizontal",legend.position=c(0.18,.85),plot.title = element_text(size = 13))+ # modifying background color
+  scale_fill_identity(name = element_blank(), guide = 'legend',labels = c('Std NN',"80% Arima")) +
+  scale_color_manual(values=c("Std NN"="lightblue","80% Arima"="lightblue3","Inflation"="blue4", "Neural Network"="darkorange","Arima"="darkred"))+
+  ylab("Inflation Growth Rate") + ggtitle("Predicting the Inflation of US: Neural Networks (21:2:7) vs ARIMA (4,0,2)") # Adding titles
+
+
+corrplot(dcor, method="color",order="hclust", insig="pch", addrect=3,cl.pos="b", tl.col = "black", tl.cex=.7)
+#Correlation between absolute values
+
+corrplot(dcordata, method="color",order="hclust", insig="pch", addrect=3,cl.pos="b", tl.col = "black", tl.cex=.7, bg = "grey60")
+#export 6.7x6.7
+
+
+grid.arrange(my.plot1.1,my.plot1.2,nrow = 2)
+grid.arrange(my.plot1.3,my.plot1.4,nrow = 2)
+#grid.arrange(my.plot1.1,my.plot1.2,my.plot1.3,my.plot1.4,nrow = 4)
+
+grid.arrange(my.plot2.1,my.plot2.2,nrow = 2)
+grid.arrange(my.plot2.3,my.plot2.4,nrow = 2)
+#grid.arrange(my.plot2.1,my.plot2.2,my.plot2.3,my.plot2.4,nrow = 4)
+
+#export as pdf 6.2x9 inches
+
+plotNN.f
+
+
+
+```
+
+
